@@ -33,6 +33,27 @@ interface PromptVariationResponse {
   responseTimeMs: number;
 }
 
+interface DesiredResult {
+  device: string;
+  mask_type: string;
+  add_ons: string[];
+  qualifier: string;
+  ordering_provider: string;
+}
+
+interface ScoredPromptResponse extends PromptResponse {
+  score: number;
+  scoreBreakdown: {
+    device: number;
+    maskType: number;
+    addOns: number;
+    qualifier: number;
+    orderingProvider: number;
+    structureBonus: number;
+    total: number;
+  };
+}
+
 function App() {
   const [systemPrompt, setSystemPrompt] = useState(`You are a DME (Durable Medical Equipment) data extraction specialist. Extract structured information from clinical notes and format it as JSON with the following fields:
 - patient_info: {name, medical_record_number}
@@ -60,6 +81,16 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [generatingVariations, setGeneratingVariations] = useState(false);
   const [savedConfigs, setSavedConfigs] = useState<{[key: string]: any}>({});
+  const [scoredResponses, setScoredResponses] = useState<ScoredPromptResponse[]>([]);
+  const [showScoring, setShowScoring] = useState(false);
+  
+  const [desiredResult, setDesiredResult] = useState<DesiredResult>({
+    device: "CPAP",
+    mask_type: "full face",
+    add_ons: ["humidifier"],
+    qualifier: "AHI > 20",
+    ordering_provider: "Dr. Cameron"
+  });
 
   const updateUserPrompt = (index: number, value: string) => {
     const newPrompts = [...userPrompts];
@@ -224,6 +255,49 @@ function App() {
     setModel('gpt-3.5-turbo');
   };
 
+  const scoreAllResponses = async () => {
+    if (responses.length === 0) {
+      setError('No responses to score. Please submit some prompts first.');
+      return;
+    }
+
+    try {
+      const res = await fetch('http://localhost:3001/api/score-responses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          responses: responses.map(r => ({
+            output: r.output,
+            tokensUsed: r.tokensUsed,
+            responseTimeMs: r.responseTimeMs,
+            model: r.model
+          })),
+          desiredResult
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setScoredResponses(data.scoredResponses);
+      setShowScoring(true);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to score responses');
+    }
+  };
+
+  const clearResults = () => {
+    setResponses([]);
+    setScoredResponses([]);
+    setShowScoring(false);
+    setError(null);
+  };
+
   // Load saved configurations on component mount
   useEffect(() => {
     const saved = localStorage.getItem('promptConfigs');
@@ -251,6 +325,17 @@ function App() {
       </header>
 
       <div className="container">
+        <div className="usage-tips">
+          <h3>💡 Quick Tips</h3>
+          <ul>
+            <li><strong>🎯 Start:</strong> Click "Load Example Configuration" to see the tool in action</li>
+            <li><strong>✨ Generate:</strong> Use the variation generator to create different prompt approaches</li>
+            <li><strong>🚀 Test:</strong> Submit individual prompts or all at once for comparison</li>
+            <li><strong>📊 Score:</strong> Configure desired results and score responses to find the best prompt</li>
+            <li><strong>💾 Save:</strong> Save your best configurations for future use</li>
+          </ul>
+        </div>
+
         <div className="input-section">
           <div className="prompt-inputs">
             <div className="input-group">
@@ -493,6 +578,66 @@ function App() {
               )}
             </div>
           </div>
+
+          <div className="scoring-section">
+            <h3>🎯 Response Scoring</h3>
+            <p>Configure the desired result to automatically score and rank response quality</p>
+            
+            <div className="desired-result-config">
+              <h4>Desired Result Configuration:</h4>
+              <div className="desired-fields">
+                <div className="field-group">
+                  <label>Device:</label>
+                  <input
+                    type="text"
+                    value={desiredResult.device}
+                    onChange={(e) => setDesiredResult({...desiredResult, device: e.target.value})}
+                  />
+                </div>
+                <div className="field-group">
+                  <label>Mask Type:</label>
+                  <input
+                    type="text"
+                    value={desiredResult.mask_type}
+                    onChange={(e) => setDesiredResult({...desiredResult, mask_type: e.target.value})}
+                  />
+                </div>
+                <div className="field-group">
+                  <label>Add-ons (comma separated):</label>
+                  <input
+                    type="text"
+                    value={desiredResult.add_ons.join(', ')}
+                    onChange={(e) => setDesiredResult({...desiredResult, add_ons: e.target.value.split(',').map(s => s.trim())})}
+                  />
+                </div>
+                <div className="field-group">
+                  <label>Qualifier:</label>
+                  <input
+                    type="text"
+                    value={desiredResult.qualifier}
+                    onChange={(e) => setDesiredResult({...desiredResult, qualifier: e.target.value})}
+                  />
+                </div>
+                <div className="field-group">
+                  <label>Ordering Provider:</label>
+                  <input
+                    type="text"
+                    value={desiredResult.ordering_provider}
+                    onChange={(e) => setDesiredResult({...desiredResult, ordering_provider: e.target.value})}
+                  />
+                </div>
+              </div>
+              
+              <button 
+                className="score-btn"
+                onClick={scoreAllResponses}
+                disabled={responses.length === 0}
+                type="button"
+              >
+                📊 Score All Responses
+              </button>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -502,32 +647,92 @@ function App() {
           </div>
         )}
 
-        {responses.length > 0 && (
+        {(responses.length > 0 || scoredResponses.length > 0) && (
           <div className="results-grid">
-            <h2 className="results-title">📤 Comparison Results</h2>
-            <div className="responses-container">
-              {responses.map((response) => (
-                <div key={response.promptIndex} className="response-card">
-                  <div className="response-header">
-                    <h3>Prompt {response.promptIndex + 1}</h3>
-                    <div className="metrics">
-                      <span className="metric">
-                        🔤 {response.tokensUsed} tokens
-                      </span>
-                      <span className="metric">
-                        ⏱️ {response.responseTimeMs}ms
-                      </span>
-                      <span className="metric">
-                        🤖 {response.model}
-                      </span>
-                    </div>
+            <div className="results-header">
+              <h2 className="results-title">📤 Comparison Results</h2>
+              {scoredResponses.length > 0 && (
+                <div className="scoring-summary">
+                  <span className="top-score">🏆 Highest Score: {Math.max(...scoredResponses.map(r => r.score))}/100</span>
+                  <div className="results-controls">
+                    <button 
+                      className="toggle-scoring-btn"
+                      onClick={() => setShowScoring(!showScoring)}
+                      type="button"
+                    >
+                      {showScoring ? '📊 Hide Scores' : '📊 Show Scores'}
+                    </button>
+                    <button 
+                      className="clear-results-btn"
+                      onClick={clearResults}
+                      type="button"
+                    >
+                      🗑️ Clear Results
+                    </button>
                   </div>
-                  <div className="user-prompt-display">
-                    <strong>User Prompt:</strong> {response.userPrompt}
-                  </div>
-                  <pre className="output">{response.output}</pre>
                 </div>
-              ))}
+              )}
+            </div>
+            <div className="responses-container">
+              {(showScoring && scoredResponses.length > 0 ? scoredResponses : responses).map((response, index) => {
+                const isScored = 'score' in response;
+                const scoredResponse = response as ScoredPromptResponse;
+                const originalIndex = isScored ? 
+                  responses.findIndex(r => r.output === response.output) : 
+                  response.promptIndex || index;
+
+                return (
+                  <div key={`${originalIndex}-${isScored ? 'scored' : 'original'}`} className={`response-card ${isScored && scoredResponse.score === Math.max(...scoredResponses.map(r => r.score)) ? 'highest-score' : ''}`}>
+                    <div className="response-header">
+                      <div className="prompt-info">
+                        <h3>Prompt {originalIndex + 1}</h3>
+                        {isScored && (
+                          <div className="score-display">
+                            <span className="score-badge">{scoredResponse.score}/100</span>
+                            {scoredResponse.score === Math.max(...scoredResponses.map(r => r.score)) && (
+                              <span className="winner-badge">🏆 Best</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="metrics">
+                        <span className="metric">
+                          🔤 {response.tokensUsed} tokens
+                        </span>
+                        <span className="metric">
+                          ⏱️ {response.responseTimeMs}ms
+                        </span>
+                        <span className="metric">
+                          🤖 {response.model}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {isScored && showScoring && (
+                      <div className="score-breakdown">
+                        <h5>Score Breakdown:</h5>
+                        <div className="breakdown-items">
+                          <span>Device: {scoredResponse.scoreBreakdown.device}/20</span>
+                          <span>Mask: {scoredResponse.scoreBreakdown.maskType}/20</span>
+                          <span>Add-ons: {scoredResponse.scoreBreakdown.addOns}/20</span>
+                          <span>Qualifier: {scoredResponse.scoreBreakdown.qualifier}/20</span>
+                          <span>Provider: {scoredResponse.scoreBreakdown.orderingProvider}/20</span>
+                          <span>Structure: {scoredResponse.scoreBreakdown.structureBonus}/10</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="user-prompt-display">
+                      <strong>User Prompt:</strong> {
+                        'userPrompt' in response 
+                          ? response.userPrompt 
+                          : responses[originalIndex]?.userPrompt || 'N/A'
+                      }
+                    </div>
+                    <pre className="output">{response.output}</pre>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

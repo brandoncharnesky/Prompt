@@ -8,6 +8,8 @@ A modern web application for experimenting with AI prompt tuning to extract stru
 - **⚡ Individual & Batch Processing**: Submit prompts individually or all at once for comparison
 - **📊 Side-by-Side Results**: Compare outputs from different prompts in a responsive grid layout
 - **✨ AI-Powered Prompt Generation**: Automatically generate prompt variations with different focus areas
+- **🎯 Intelligent Scoring System**: Automatically evaluate response quality with 0-100 scoring
+- **🏆 Best Response Identification**: Automatically highlights the highest-scoring response
 - **💾 Configuration Management**: Save and load prompt configurations for repeated testing
 - **🎯 Quick Examples**: Load pre-configured examples to get started quickly
 - **🧾 Clinical Note Processing**: Paste messy clinical notes and get structured JSON output
@@ -75,6 +77,35 @@ The app runs in demo mode by default with mock responses - no API keys required!
 - **📁 Load Configurations**: Quickly restore previously saved configurations
 - **🗑️ Delete**: Remove configurations you no longer need
 
+### Response Scoring System (0-100 Points)
+The built-in scoring system automatically evaluates how well each response matches your desired result:
+
+**Scoring Breakdown:**
+- **Device (20 pts)**: Correctly identifies the medical device (e.g., "CPAP")
+- **Mask Type (20 pts)**: Accurately extracts mask specifications (e.g., "full face")
+- **Add-ons (20 pts)**: Identifies required accessories (e.g., "humidifier")
+- **Qualifier (20 pts)**: Captures medical qualifiers (e.g., "AHI > 20")
+- **Ordering Provider (20 pts)**: Extracts physician information (e.g., "Dr. Cameron")
+- **Structure Bonus (10 pts)**: Extra points for well-formatted JSON output
+
+**Default Configuration:**
+```json
+{
+  "device": "CPAP",
+  "mask_type": "full face", 
+  "add_ons": ["humidifier"],
+  "qualifier": "AHI > 20",
+  "ordering_provider": "Dr. Cameron"
+}
+```
+
+**How to Use:**
+1. Configure your desired result parameters
+2. Submit multiple prompts for testing
+3. Click "📊 Score All Responses" 
+4. View scores and identify the 🏆 highest-scoring response
+5. Toggle between scored and original views
+
 ### Example Use Cases
 - **Prompt A**: Focus on equipment specifications
 - **Prompt B**: Prioritize insurance and authorization details  
@@ -83,6 +114,52 @@ The app runs in demo mode by default with mock responses - no API keys required!
 - **Prompt E**: Comprehensive data extraction
 
 This allows you to quickly iterate and find the most effective prompt for your specific DME data extraction needs.
+
+## 🔧 API Endpoints
+
+- `POST /api/prompt` - Process individual prompts and return structured data
+- `POST /api/generate-variations` - Generate AI-powered prompt variations
+- `POST /api/score-responses` - Score responses against desired results
+- `GET /health` - Server health check
+
+## 🚨 Troubleshooting
+
+**Server won't start?**
+- Check if ports 3001 (backend) and 5173 (frontend) are available
+- Run `npm install` in both root and server directories
+
+**OpenAI API not working?**
+- Ensure your API key is set in `.env`: `OPENAI_API_KEY=sk-your-key-here`
+- Check your OpenAI account has sufficient credits
+- The app works in demo mode without an API key
+
+**Scoring not working?**
+- Make sure you have responses before scoring
+- Check that the desired result configuration matches your expected format
+
+## 🏗️ Technical Architecture
+
+**Frontend Stack:**
+- React 19 + TypeScript
+- Vite for fast development
+- CSS Grid for responsive layouts
+- localStorage for configuration persistence
+
+**Backend Stack:**
+- Node.js + Express + TypeScript
+- OpenAI Chat Completions API
+- CORS enabled for development
+- Environment-based configuration
+
+## 📊 Scoring Algorithm
+
+The scoring system uses a weighted approach:
+1. **Exact matches** get full points (20 each)
+2. **Partial matches** get reduced points (10-15)
+3. **Structure bonus** rewards valid JSON (10 points)
+4. **Total score** capped at 100 for clarity
+
+This provides objective comparison of prompt effectiveness!
 
 ```js
 export default tseslint.config({

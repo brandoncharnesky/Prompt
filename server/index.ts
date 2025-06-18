@@ -26,6 +26,32 @@ interface PromptResponse {
   model: string;
 }
 
+interface ScoredPromptResponse extends PromptResponse {
+  score: number;
+  scoreBreakdown: {
+    device: number;
+    maskType: number;
+    addOns: number;
+    qualifier: number;
+    orderingProvider: number;
+    structureBonus: number;
+    total: number;
+  };
+}
+
+interface DesiredResult {
+  device: string;
+  mask_type: string;
+  add_ons: string[];
+  qualifier: string;
+  ordering_provider: string;
+}
+
+interface ScoreRequest {
+  responses: PromptResponse[];
+  desiredResult: DesiredResult;
+}
+
 // OpenAI Chat Completion API response interface
 // Based on https://platform.openai.com/docs/api-reference/chat/object
 interface OpenAIChatCompletionResponse {
@@ -239,9 +265,173 @@ Return only the variations, one per line, without numbering or additional text.`
 
   } catch (error) {
     console.error('Error generating prompt variations:', error);
-    throw new Error('Failed to generate prompt variations');
-  }
+    throw new Error('Failed to generate prompt variations');  }
 }
+
+// Scoring mechanism to evaluate response quality
+function scoreResponse(response: PromptResponse, desiredResult: DesiredResult): ScoredPromptResponse {
+  let parsedOutput: any;
+  
+  try {
+    parsedOutput = JSON.parse(response.output);
+  } catch (error) {
+    // If not valid JSON, try to extract key information from text
+    parsedOutput = extractFromText(response.output);
+  }
+  
+  const scores = {
+    device: 0,
+    maskType: 0,
+    addOns: 0,
+    qualifier: 0,
+    orderingProvider: 0,
+    structureBonus: 0,
+    total: 0
+  };
+  
+  // Device scoring (20 points max)
+  const deviceValue = extractValue(parsedOutput, ['device', 'equipment', 'equipment_needed.device', 'medical_equipment']);
+  if (deviceValue && deviceValue.toLowerCase().includes(desiredResult.device.toLowerCase())) {
+    scores.device = 20;
+  } else if (deviceValue && (deviceValue.toLowerCase().includes('cpap') || deviceValue.toLowerCase().includes('sleep'))) {
+    scores.device = 10;
+  }
+  
+  // Mask type scoring (20 points max)
+  const maskValue = extractValue(parsedOutput, ['mask_type', 'mask', 'equipment_needed.accessories', 'accessories']);
+  if (maskValue && maskValue.toLowerCase().includes('full face')) {
+    scores.maskType = 20;
+  } else if (maskValue && maskValue.toLowerCase().includes('mask')) {
+    scores.maskType = 10;
+  }
+  
+  // Add-ons scoring (20 points max)
+  const addOnsValue = extractValue(parsedOutput, ['add_ons', 'accessories', 'equipment_needed.accessories']);
+  if (addOnsValue) {
+    const addOnsText = Array.isArray(addOnsValue) ? addOnsValue.join(' ') : addOnsValue.toString();
+    if (addOnsText.toLowerCase().includes('humidifier')) {
+      scores.addOns = 20;
+    } else if (addOnsText.toLowerCase().includes('humid') || addOnsText.toLowerCase().includes('moisture')) {
+      scores.addOns = 10;
+    }
+  }
+  
+  // Qualifier scoring (20 points max)
+  const qualifierValue = extractValue(parsedOutput, ['qualifier', 'ahi', 'medical_data.ahi_score', 'ahi_score', 'severity']);
+  if (qualifierValue && qualifierValue.toString().includes('> 20')) {
+    scores.qualifier = 20;
+  } else if (qualifierValue && (qualifierValue.toString().includes('20') || qualifierValue.toString().includes('severe'))) {
+    scores.qualifier = 15;
+  } else if (qualifierValue && qualifierValue.toString().toLowerCase().includes('ahi')) {
+    scores.qualifier = 10;
+  }
+  
+  // Ordering provider scoring (20 points max)
+  const providerValue = extractValue(parsedOutput, ['ordering_provider', 'physician', 'doctor', 'ordering_physician.name', 'provider']);
+  if (providerValue && providerValue.toLowerCase().includes('cameron')) {
+    scores.orderingProvider = 20;
+  } else if (providerValue && providerValue.toLowerCase().includes('dr')) {
+    scores.orderingProvider = 10;
+  }
+  
+  // Structure bonus (extra points for well-structured JSON)
+  try {
+    JSON.parse(response.output);
+    scores.structureBonus = 10; // Bonus for valid JSON
+  } catch (error) {
+    scores.structureBonus = 0;
+  }
+  
+  scores.total = scores.device + scores.maskType + scores.addOns + scores.qualifier + scores.orderingProvider + scores.structureBonus;
+  
+  return {
+    ...response,
+    score: Math.min(100, scores.total), // Cap at 100
+    scoreBreakdown: scores
+  };
+}
+
+// Extract value from nested object using multiple possible paths
+function extractValue(obj: any, paths: string[]): any {
+  for (const path of paths) {
+    const value = getNestedValue(obj, path);
+    if (value !== undefined && value !== null) {
+      return value;
+    }
+  }
+  return null;
+}
+
+// Get nested value using dot notation
+function getNestedValue(obj: any, path: string): any {
+  return path.split('.').reduce((current, key) => current?.[key], obj);
+}
+
+// Extract information from plain text when JSON parsing fails
+function extractFromText(text: string): any {
+  const extracted: any = {};
+  
+  // Extract device
+  if (text.toLowerCase().includes('cpap')) {
+    extracted.device = 'CPAP';
+  }
+  
+  // Extract mask type
+  if (text.toLowerCase().includes('full face')) {
+    extracted.mask_type = 'full face';
+  }
+  
+  // Extract add-ons
+  if (text.toLowerCase().includes('humidifier')) {
+    extracted.add_ons = ['humidifier'];
+  }
+  
+  // Extract AHI
+  const ahiMatch = text.match(/AHI[^\d]*(\d+)/i);
+  if (ahiMatch) {
+    extracted.ahi = `> ${ahiMatch[1]}`;
+  }
+  
+  // Extract provider
+  const drMatch = text.match(/Dr\.?\s+(\w+)/i);
+  if (drMatch) {
+    extracted.ordering_provider = `Dr. ${drMatch[1]}`;
+  }
+  
+  return extracted;
+}
+
+app.post('/api/score-responses', async (req, res) => {
+  try {
+    const { responses, desiredResult }: ScoreRequest = req.body;
+    
+    if (!responses || !Array.isArray(responses) || !desiredResult) {
+      return res.status(400).json({ error: 'Invalid request: responses array and desiredResult required' });
+    }
+    
+    const scoredResponses = responses.map(response => scoreResponse(response, desiredResult));
+    
+    // Sort by score (highest first)
+    scoredResponses.sort((a, b) => b.score - a.score);
+    
+    res.json({
+      scoredResponses,
+      topScore: scoredResponses[0]?.score || 0,
+      summary: {
+        totalResponses: scoredResponses.length,
+        averageScore: scoredResponses.reduce((sum, r) => sum + r.score, 0) / scoredResponses.length,
+        scoreRange: {
+          highest: scoredResponses[0]?.score || 0,
+          lowest: scoredResponses[scoredResponses.length - 1]?.score || 0
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error scoring responses:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 app.post('/api/generate-variations', async (req, res) => {
   try {
