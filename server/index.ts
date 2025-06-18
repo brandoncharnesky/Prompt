@@ -169,4 +169,6 @@ app.get('/health', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📝 OpenAI API Key status: ${process.env.OPENAI_API_KEY ? 'CONFIGURED' : 'NOT SET - Using mock responses'}`);
+  console.log(`🔧 Mode: ${process.env.OPENAI_API_KEY ? 'PRODUCTION (Real API)' : 'DEVELOPMENT (Mock Data)'}`);
 });
