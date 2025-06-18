@@ -163,6 +163,108 @@ app.post('/api/prompt', async (req, res) => {
   }
 });
 
+interface PromptVariationRequest {
+  originalPrompt: string;
+  numVariations: number;
+  focus?: string; // Optional focus area like "equipment", "insurance", "physician", etc.
+}
+
+interface PromptVariationResponse {
+  variations: string[];
+  responseTimeMs: number;
+}
+
+// Generate prompt variations using OpenAI
+async function generatePromptVariations(request: PromptVariationRequest): Promise<PromptVariationResponse> {
+  const startTime = Date.now();
+  
+  if (!process.env.OPENAI_API_KEY) {
+    // Mock variations for development
+    const mockVariations = [
+      `Extract ${request.focus || 'all relevant'} DME information with focus on clinical details from the following note:`,
+      `Analyze the clinical note and identify ${request.focus || 'key'} DME requirements and specifications:`,
+      `Parse the medical documentation for ${request.focus || 'essential'} equipment and patient information:`,
+      `Review the clinical note and extract ${request.focus || 'critical'} DME data in structured format:`,
+      `Process the healthcare document to identify ${request.focus || 'important'} medical equipment needs:`
+    ];
+    
+    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+    
+    return {
+      variations: mockVariations.slice(0, request.numVariations),
+      responseTimeMs: Date.now() - startTime
+    };
+  }
+
+  try {
+    const focusText = request.focus ? ` with a focus on ${request.focus}` : '';
+    const systemPrompt = `You are a prompt engineering specialist for healthcare AI applications. Your task is to generate ${request.numVariations} different variations of a user prompt for extracting DME (Durable Medical Equipment) information from clinical notes.
+
+Each variation should:
+- Use different phrasing and approach
+- Maintain the same core objective
+- Be clear and specific
+- Be suitable for healthcare data extraction${focusText}
+
+Return only the variations, one per line, without numbering or additional text.`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Create ${request.numVariations} variations of this prompt: "${request.originalPrompt}"` }
+        ],
+        temperature: 0.8,
+        max_tokens: 400,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data: OpenAIChatCompletionResponse = await response.json() as OpenAIChatCompletionResponse;
+    const variations = data.choices[0]?.message?.content?.split('\n').filter(line => line.trim()) || [];
+    
+    return {
+      variations: variations.slice(0, request.numVariations),
+      responseTimeMs: Date.now() - startTime
+    };
+
+  } catch (error) {
+    console.error('Error generating prompt variations:', error);
+    throw new Error('Failed to generate prompt variations');
+  }
+}
+
+app.post('/api/generate-variations', async (req, res) => {
+  try {
+    const request: PromptVariationRequest = req.body;
+    
+    // Validate request
+    if (!request.originalPrompt || !request.numVariations) {
+      return res.status(400).json({ error: 'Missing required fields: originalPrompt and numVariations' });
+    }
+    
+    if (request.numVariations < 1 || request.numVariations > 5) {
+      return res.status(400).json({ error: 'numVariations must be between 1 and 5' });
+    }
+    
+    const response = await generatePromptVariations(request);
+    res.json(response);
+    
+  } catch (error) {
+    console.error('Error processing variation request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
 interface PromptRequest {
@@ -20,6 +20,17 @@ interface PromptResponse {
 interface MultiPromptResponse extends PromptResponse {
   promptIndex: number;
   userPrompt: string;
+}
+
+interface PromptVariationRequest {
+  originalPrompt: string;
+  numVariations: number;
+  focus?: string;
+}
+
+interface PromptVariationResponse {
+  variations: string[];
+  responseTimeMs: number;
 }
 
 function App() {
@@ -47,6 +58,8 @@ function App() {
   const [responses, setResponses] = useState<MultiPromptResponse[]>([]);
   const [loading, setLoading] = useState<boolean[]>([false, false, false, false, false]);
   const [error, setError] = useState<string | null>(null);
+  const [generatingVariations, setGeneratingVariations] = useState(false);
+  const [savedConfigs, setSavedConfigs] = useState<{[key: string]: any}>({});
 
   const updateUserPrompt = (index: number, value: string) => {
     const newPrompts = [...userPrompts];
@@ -113,11 +126,128 @@ function App() {
     }
   };
 
+  const generateVariations = async (basePrompt: string, focus?: string) => {
+    setGeneratingVariations(true);
+    setError(null);
+
+    try {
+      const request: PromptVariationRequest = {
+        originalPrompt: basePrompt,
+        numVariations: 5,
+        focus
+      };
+
+      const res = await fetch('http://localhost:3001/api/generate-variations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data: PromptVariationResponse = await res.json();
+      
+      // Update user prompts with generated variations
+      const newPrompts = [...data.variations];
+      // Fill remaining slots with empty strings if needed
+      while (newPrompts.length < 5) {
+        newPrompts.push('');
+      }
+      setUserPrompts(newPrompts);
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate variations');
+    } finally {
+      setGeneratingVariations(false);
+    }
+  };
+
+  const saveConfiguration = (name: string) => {
+    const config = {
+      systemPrompt,
+      userPrompts,
+      inputText,
+      temperature,
+      maxTokens,
+      model,
+      timestamp: new Date().toISOString()
+    };
+    
+    const newConfigs = { ...savedConfigs, [name]: config };
+    setSavedConfigs(newConfigs);
+    localStorage.setItem('promptConfigs', JSON.stringify(newConfigs));
+  };
+
+  const loadConfiguration = (name: string) => {
+    const config = savedConfigs[name];
+    if (config) {
+      setSystemPrompt(config.systemPrompt);
+      setUserPrompts(config.userPrompts);
+      setInputText(config.inputText);
+      setTemperature(config.temperature);
+      setMaxTokens(config.maxTokens);
+      setModel(config.model);
+    }
+  };
+
+  const deleteConfiguration = (name: string) => {
+    const newConfigs = { ...savedConfigs };
+    delete newConfigs[name];
+    setSavedConfigs(newConfigs);
+    localStorage.setItem('promptConfigs', JSON.stringify(newConfigs));
+  };
+
+  const loadExample = () => {
+    setSystemPrompt(`You are a DME (Durable Medical Equipment) data extraction specialist. Extract structured information from clinical notes and format it as JSON with the following fields:
+- patient_info: {name, medical_record_number}
+- equipment_needed: {device, accessories, pressure_setting}
+- medical_data: {ahi_score, severity}
+- ordering_physician: {name, specialty}
+- insurance: {authorization_required, coverage_status}`);
+    
+    setUserPrompts([
+      'Extract all relevant DME information from the following clinical note:',
+      'Focus specifically on equipment specifications and medical requirements:',
+      'Prioritize insurance authorization and coverage details:',
+      'Extract physician information and ordering details:',
+      'Identify patient safety requirements and compliance needs:'
+    ]);
+    
+    setInputText(`Patient John Smith (MRN: 12345) requires CPAP therapy with full face mask and heated humidifier. AHI score shows severe sleep apnea at 35 events/hour. Pressure settings should be auto-adjusting 4-20 cmH2O. Patient has Medicare Part B coverage - prior authorization required. Ordered by Dr. Sarah Cameron, Sleep Medicine specialist. Patient education on compliance monitoring completed. Follow-up in 30 days for equipment check.`);
+    
+    setTemperature(0.1);
+    setMaxTokens(600);
+    setModel('gpt-3.5-turbo');
+  };
+
+  // Load saved configurations on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem('promptConfigs');
+    if (saved) {
+      try {
+        setSavedConfigs(JSON.parse(saved));
+      } catch (error) {
+        console.error('Failed to load saved configurations:', error);
+      }
+    }
+  }, []);
+
   return (
     <div className="app">
       <header className="header">
         <h1>🏥 DME Prompt Tuning Tool</h1>
         <p>Extract structured data from clinical notes using AI</p>
+        <button 
+          className="example-btn"
+          onClick={loadExample}
+          type="button"
+        >
+          🎯 Load Example Configuration
+        </button>
       </header>
 
       <div className="container">
@@ -154,6 +284,82 @@ function App() {
                   </button>
                 </div>
               ))}
+              
+              <div className="variation-generator">
+                <h4>🎯 Generate Prompt Variations</h4>
+                <p>Automatically create different variations of a base prompt for testing</p>
+                <div className="variation-controls">
+                  <input
+                    type="text"
+                    placeholder="Enter a base prompt to generate variations from..."
+                    className="base-prompt-input"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                        generateVariations(e.currentTarget.value.trim());
+                        e.currentTarget.value = '';
+                      }
+                    }}
+                  />
+                  <div className="focus-buttons">
+                    <button 
+                      className="focus-btn"
+                      onClick={() => {
+                        const input = document.querySelector('.base-prompt-input') as HTMLInputElement;
+                        if (input && input.value.trim()) {
+                          generateVariations(input.value.trim(), 'equipment');
+                          input.value = '';
+                        }
+                      }}
+                      disabled={generatingVariations}
+                      type="button"
+                    >
+                      🔧 Equipment Focus
+                    </button>
+                    <button 
+                      className="focus-btn"
+                      onClick={() => {
+                        const input = document.querySelector('.base-prompt-input') as HTMLInputElement;
+                        if (input && input.value.trim()) {
+                          generateVariations(input.value.trim(), 'insurance');
+                          input.value = '';
+                        }
+                      }}
+                      disabled={generatingVariations}
+                      type="button"
+                    >
+                      💼 Insurance Focus
+                    </button>
+                    <button 
+                      className="focus-btn"
+                      onClick={() => {
+                        const input = document.querySelector('.base-prompt-input') as HTMLInputElement;
+                        if (input && input.value.trim()) {
+                          generateVariations(input.value.trim(), 'physician');
+                          input.value = '';
+                        }
+                      }}
+                      disabled={generatingVariations}
+                      type="button"
+                    >
+                      👨‍⚕️ Physician Focus
+                    </button>
+                    <button 
+                      className="focus-btn generate-general"
+                      onClick={() => {
+                        const input = document.querySelector('.base-prompt-input') as HTMLInputElement;
+                        if (input && input.value.trim()) {
+                          generateVariations(input.value.trim());
+                          input.value = '';
+                        }
+                      }}
+                      disabled={generatingVariations}
+                      type="button"
+                    >
+                      {generatingVariations ? '🔄 Generating...' : '✨ Generate General'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="input-group">
@@ -221,6 +427,70 @@ function App() {
               >
                 {loading.some(l => l) ? '🔄 Processing...' : '🚀 Submit All Prompts'}
               </button>
+            </div>
+          </div>
+
+          <div className="config-management">
+            <h3>💾 Configuration Management</h3>
+            <div className="config-controls">
+              <div className="save-config">
+                <input
+                  type="text"
+                  placeholder="Configuration name..."
+                  className="config-name-input"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                      saveConfiguration(e.currentTarget.value.trim());
+                      e.currentTarget.value = '';
+                    }
+                  }}
+                />
+                <button 
+                  className="save-btn"
+                  onClick={() => {
+                    const input = document.querySelector('.config-name-input') as HTMLInputElement;
+                    if (input && input.value.trim()) {
+                      saveConfiguration(input.value.trim());
+                      input.value = '';
+                    }
+                  }}
+                  type="button"
+                >
+                  💾 Save Current
+                </button>
+              </div>
+              
+              {Object.keys(savedConfigs).length > 0 && (
+                <div className="saved-configs">
+                  <h4>Saved Configurations:</h4>
+                  <div className="config-list">
+                    {Object.entries(savedConfigs).map(([name, config]) => (
+                      <div key={name} className="config-item">
+                        <span className="config-name">{name}</span>
+                        <span className="config-date">
+                          {new Date(config.timestamp).toLocaleDateString()}
+                        </span>
+                        <div className="config-actions">
+                          <button 
+                            className="load-btn"
+                            onClick={() => loadConfiguration(name)}
+                            type="button"
+                          >
+                            📁 Load
+                          </button>
+                          <button 
+                            className="delete-btn"
+                            onClick={() => deleteConfiguration(name)}
+                            type="button"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

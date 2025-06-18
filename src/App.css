@@ -40,6 +40,26 @@ body {
   font-size: 1.1rem;
   color: #666;
   font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.example-btn {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 25px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.example-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
 }
 
 .container {
@@ -282,6 +302,224 @@ body {
   transform: none;
 }
 
+/* Variation Generator */
+.variation-generator {
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  border: 2px solid #dee2e6;
+}
+
+.variation-generator h4 {
+  margin: 0 0 0.5rem 0;
+  color: #495057;
+  font-size: 1.1rem;
+}
+
+.variation-generator p {
+  margin: 0 0 1rem 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.variation-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.base-prompt-input {
+  padding: 0.75rem;
+  border: 2px solid #ced4da;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.base-prompt-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.focus-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.focus-btn {
+  background: #fff;
+  border: 2px solid #dee2e6;
+  color: #495057;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.focus-btn:hover:not(:disabled) {
+  border-color: #667eea;
+  color: #667eea;
+  transform: translateY(-1px);
+}
+
+.focus-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.generate-general {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-color: transparent;
+}
+
+.generate-general:hover:not(:disabled) {
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* Configuration Management */
+.config-management {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.config-management h3 {
+  margin: 0 0 1.5rem 0;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.config-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.save-config {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.config-name-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.config-name-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+
+.saved-configs h4 {
+  margin: 0 0 1rem 0;
+  color: #495057;
+  font-size: 1rem;
+}
+
+.config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.config-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.config-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.1);
+}
+
+.config-name {
+  font-weight: 600;
+  color: #495057;
+  flex: 1;
+}
+
+.config-date {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-right: 1rem;
+}
+
+.config-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.load-btn, .delete-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.load-btn {
+  background: #007bff;
+  color: white;
+}
+
+.load-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.delete-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.delete-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
 .submit-buttons {
   margin-top: 1rem;
 }
@@ -426,6 +664,33 @@ body {
   
   .results-grid {
     padding: 1.5rem;
+  }
+  
+  .variation-generator {
+    padding: 1rem;
+  }
+  
+  .focus-buttons {
+    flex-direction: column;
+  }
+  
+  .focus-btn {
+    text-align: center;
+  }
+  
+  .save-config {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .config-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
+  .config-actions {
+    justify-content: center;
   }
 }
 
