@@ -204,6 +204,8 @@ export default tseslint.config({
 ```
 
 
+
+
 This project was created using Claude Sonnet 4 with an initial prompt of:
 
 #new You’re the newest AI engineer on a fast-moving DME healthcare team. Doctors are sending in messy clinical notes like:
@@ -217,3 +219,22 @@ Build a lightweight tool (web or CLI) that lets a user:
 •	🤖 Send it to the LLM
 •	📤 Display the structured output
 •	📊 Show token usage + response time
+
+Then the logic around using the real OPENAI endpoint was update, and a key can be added to the /server/.env file for testing.
+prompt: Add the typescript interface for OpenAIChatCompletionResponse and handle the response as that
+
+Additional clause prompts were used to generate bonus features.
+- Allow up to five different user prompts to be added, and then each request submitted seperately to the API and all five results shown side by side
+- Create a new simple openAI endpoint that uses simple chat completions to generate variations on prompts
+- Create a scoring mechanism (0-100) to evaluate which response is closest to the desired result. Show which response scored the highest. use "{
+"device": "CPAP",
+"mask_type": "full face",
+"add_ons": ["humidifier"],
+"qualifier": "AHI > 20",
+"ordering_provider": "Dr. Cameron"
+}
+" as the initial configuration for the desired result.
+
+The configuration management piece was added by the AI without specific prompting.  
+
+An additional roadmap, is to have this tool to score the results, and use that data to self-train the "variations".  Variations in temperature and model could be done as well, and some cost analysis added It could then iterate thought multiple runs, and eventually end up with a best result.
