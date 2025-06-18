@@ -4,11 +4,13 @@ A modern web application for experimenting with AI prompt tuning to extract stru
 
 ## 🚀 Features
 
-- **🧠 Intelligent Prompt Engineering**: Input system and user prompts for optimal data extraction
+- **🧠 Multi-Prompt Engineering**: Create and test up to 5 different user prompts simultaneously
+- **⚡ Individual & Batch Processing**: Submit prompts individually or all at once for comparison
+- **📊 Side-by-Side Results**: Compare outputs from different prompts in a responsive grid layout
 - **🧾 Clinical Note Processing**: Paste messy clinical notes and get structured JSON output
 - **🛠️ Model Parameter Tuning**: Adjust temperature, max tokens, and model selection
 - **🤖 Multi-LLM Support**: Compatible with OpenAI GPT models (with easy extension to other providers)
-- **📊 Performance Metrics**: Real-time token usage and response time tracking
+- **📈 Performance Metrics**: Real-time token usage and response time tracking for each prompt
 - **💻 Modern UI**: Beautiful, responsive interface designed for healthcare professionals
 - **🔄 Real-time Testing**: Instant feedback for prompt optimization
 
@@ -39,6 +41,27 @@ A modern web application for experimenting with AI prompt tuning to extract stru
 3. **Open the app**: Navigate to `http://localhost:5173`
 
 The app runs in demo mode by default with mock responses - no API keys required!
+
+## 💡 Usage Guide
+
+### Multi-Prompt Testing
+1. **Configure System Prompt**: Set your base instructions for the AI
+2. **Create User Prompts**: Enter up to 5 different user prompts to test various approaches
+3. **Input Clinical Data**: Paste your clinical notes in the input field
+4. **Adjust Parameters**: Fine-tune temperature, max tokens, and model selection
+5. **Submit & Compare**: 
+   - Click individual 🚀 buttons to test specific prompts
+   - Use "Submit All Prompts" to run all prompts for comparison
+6. **Analyze Results**: View side-by-side outputs with performance metrics
+
+### Example Use Cases
+- **Prompt A**: Focus on equipment specifications
+- **Prompt B**: Prioritize insurance and authorization details  
+- **Prompt C**: Extract physician and ordering information
+- **Prompt D**: Identify safety and compliance requirements
+- **Prompt E**: Comprehensive data extraction
+
+This allows you to quickly iterate and find the most effective prompt for your specific DME data extraction needs.
 
 ```js
 export default tseslint.config({
