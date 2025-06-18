@@ -26,6 +26,28 @@ interface PromptResponse {
   model: string;
 }
 
+// OpenAI Chat Completion API response interface
+// Based on https://platform.openai.com/docs/api-reference/chat/object
+interface OpenAIChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
 // Mock LLM function for demonstration
 async function callLLM(request: PromptRequest): Promise<PromptResponse> {
   const startTime = Date.now();
@@ -75,7 +97,10 @@ async function callOpenAI(request: PromptRequest): Promise<PromptResponse> {
   
   try {
     // Uncomment and configure for real OpenAI usage
-    /*
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key is not set');
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -93,11 +118,22 @@ async function callOpenAI(request: PromptRequest): Promise<PromptResponse> {
       }),
     });
 
-    const data = await response.json();
-    */
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data: OpenAIChatCompletionResponse = await response.json() as OpenAIChatCompletionResponse;
+    const responseTime = Date.now() - startTime;
     
+    return {
+      output: data.choices[0]?.message?.content || '',
+      tokensUsed: data.usage?.total_tokens || 0,
+      responseTimeMs: responseTime,
+      model: request.model
+    };
+
     // For now, use mock implementation
-    return await callLLM(request);
+    //return await callLLM(request);
     
   } catch (error) {
     console.error('OpenAI API error:', error);
@@ -114,7 +150,11 @@ app.post('/api/prompt', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     
-    const response = await callLLM(request);
+    // Use OpenAI if API key is provided, otherwise use mock
+    const response = process.env.OPENAI_API_KEY 
+      ? await callOpenAI(request)
+      : await callLLM(request);
+    
     res.json(response);
     
   } catch (error) {
