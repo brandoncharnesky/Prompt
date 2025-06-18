@@ -81,3 +81,18 @@ export default tseslint.config({
   },
 })
 ```
+
+
+This project was created using Claude Sonnet 4 with an initial prompt of:
+
+#new You’re the newest AI engineer on a fast-moving DME healthcare team. Doctors are sending in messy clinical notes like:
+“Patient needs a CPAP with full face mask and humidifier. AHI > 20. Ordered by Dr. Cameron.”
+Your mission: extract structured data using an LLM, and build a mini tool to help you experiment with prompt tuning.
+⏱️ The Challenge (Timebox: 1 Hour)
+Build a lightweight tool (web or CLI) that lets a user:
+•	🧠 Input a system + user prompt
+•	🧾 Paste a sample input text
+•	🛠️ Tweak a few model parameters (e.g., temperature, max_tokens)
+•	🤖 Send it to the LLM
+•	📤 Display the structured output
+•	📊 Show token usage + response time
