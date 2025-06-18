@@ -238,3 +238,5 @@ Additional clause prompts were used to generate bonus features.
 The configuration management piece was added by the AI without specific prompting.  
 
 An additional roadmap, is to have this tool to score the results, and use that data to self-train the "variations".  Variations in temperature and model could be done as well, and some cost analysis added It could then iterate thought multiple runs, and eventually end up with a best result.
+
+For actual functionality, have a key set in the server/.env file on line 8
